@@ -1,36 +1,35 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Button, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { useReactiveClient } from '@dynamic-labs/react-hooks';
 import { dynamicClient } from './client';
-
-function WalletInfo() {
-  // Read reactive wallet state from Dynamic
-  const client = useReactiveClient(dynamicClient);
-  const primaryWallet = client.wallets.primary;
-  const userWallets = client.wallets.userWallets;
-
-  if (!primaryWallet && (!userWallets || userWallets.length === 0)) {
-    return <Text>No wallet connected</Text>;
-  }
-
-  return (
-    <View style={styles.card}>
-      <Text style={styles.label}>Primary wallet</Text>
-      <Text selectable>{primaryWallet?.address ?? 'None'}</Text>
-
-      <Text style={[styles.label, { marginTop: 12 }]}>All wallets</Text>
-      {userWallets.map((wallet) => (
-        <Text key={wallet.id} selectable>
-          {wallet.address}
-        </Text>
-      ))}
-    </View>
-  );
-}
+import { EthereumScreen } from './src/screens/EthereumScreen';
 
 export default function App() {
+  const client = useReactiveClient(dynamicClient);
+  const primaryWallet = client.wallets.primary;
+  const userWallets = client.wallets.userWallets ?? [];
+  const [showWalletScreen, setShowWalletScreen] = useState(false);
+
+  const hasWallet = useMemo(
+    () => Boolean(primaryWallet) || userWallets.length > 0,
+    [primaryWallet, userWallets.length]
+  );
+
+  useEffect(() => {
+    if (!hasWallet) {
+      setShowWalletScreen(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setShowWalletScreen(true);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [hasWallet]);
+
   const openAuth = async () => {
     try {
       await dynamicClient.ui.auth.show();
@@ -38,6 +37,15 @@ export default function App() {
       console.error('Failed to open auth UI', error);
     }
   };
+
+  if (showWalletScreen) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="auto" />
+        <EthereumScreen />
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SafeAreaProvider>
@@ -48,10 +56,28 @@ export default function App() {
           <dynamicClient.reactNative.WebView />
         </View>
 
-        <View style={styles.content}>
-          <Text style={styles.title}>Hello from Dynamic!</Text>
-          <Button title="Open Dynamic Auth" onPress={openAuth} />
-          <WalletInfo />
+        <View style={styles.overlay}>
+          <View style={styles.heroCard}>
+            <Text style={styles.title}>Dynamic Ethereum Demo</Text>
+            <Text style={styles.subtitle}>
+              Connect with Google or Apple to access your wallet actions.
+            </Text>
+
+            <Pressable style={styles.primaryButton} onPress={openAuth}>
+              <Text style={styles.primaryButtonText}>Open Dynamic Auth</Text>
+            </Pressable>
+
+            <View style={styles.statusRow}>
+              {hasWallet ? (
+                <>
+                  <ActivityIndicator size="small" />
+                  <Text style={styles.statusText}>Wallet detected, opening your dashboard...</Text>
+                </>
+              ) : (
+                <Text style={styles.statusText}>Waiting for connection</Text>
+              )}
+            </View>
+          </View>
         </View>
       </SafeAreaView>
     </SafeAreaProvider>
@@ -61,23 +87,52 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#ffffff',
   },
   webviewContainer: {
     flex: 1,
   },
-  content: {
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
     padding: 16,
-    gap: 12,
+  },
+  heroCard: {
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    padding: 20,
+    gap: 14,
   },
   title: {
-    fontSize: 18,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  subtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#4b5563',
+  },
+  primaryButton: {
+    minHeight: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#111827',
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: '600',
   },
-  card: {
-    marginTop: 12,
+  statusRow: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  label: {
-    fontWeight: '600',
-    marginBottom: 4,
+  statusText: {
+    fontSize: 14,
+    color: '#374151',
   },
 });
