@@ -18,8 +18,8 @@ import { useReactiveClient } from '@dynamic-labs/react-hooks';
 import { isAddress, parseEther } from 'viem';
 import { dynamicClient } from '../../client';
 import { useEthFace } from '../hooks/useEthFace';
-import { EthFaceAvatar } from './EthFaceAvatar';
 import RNShare from 'react-native-share';
+import { WalletFaceWebView } from './WalletFaceWebView';
 
 
 type NetworkOption = {
@@ -185,7 +185,7 @@ export function EthereumScreen() {
       setIsSharing(false);
     }
   };
-  
+
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
@@ -300,13 +300,14 @@ export function EthereumScreen() {
 
           {isAddress(to, { strict: false }) ? (
             <View style={styles.avatarRow}>
-              <EthFaceAvatar address={to} size={160} />
+              <WalletFaceWebView address={to} size={160} />
+
               <View style={styles.avatarMeta}>
                 <Text style={styles.avatarTitle}>Recipient</Text>
                 <Text style={styles.avatarAddress}>{to}</Text>
               </View>
             </View>
-          ) : null}ks
+          ) : null}
 
           <Pressable
             style={[styles.primaryButton, (isSending || isSwitching) && styles.buttonDisabled]}
@@ -353,9 +354,9 @@ export function EthereumScreen() {
 
       </ScrollView>
 
-      <View style={styles.hiddenWebview}>
+      {/* <View style={styles.hiddenWebview}>
         <dynamicClient.reactNative.WebView />
-      </View>
+      </View> */}
     </SafeAreaView>
   );
 }
