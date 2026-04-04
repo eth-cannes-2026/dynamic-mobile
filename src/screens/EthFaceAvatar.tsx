@@ -15,82 +15,82 @@
 
 import React, { useEffect, useRef } from 'react';
 import {
-  Animated,
-  Image,
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type ViewStyle,
+    Animated,
+    Image,
+    StyleSheet,
+    Text,
+    View,
+    type StyleProp,
+    type ViewStyle,
 } from 'react-native';
 import { isAddress } from 'viem';
 import { useEthFace } from '../hooks/useEthFace';
 
 interface EthFaceAvatarProps {
-  address: string;
-  size?: number;
-  style?: StyleProp<ViewStyle>;
+    address: string;
+    size?: number;
+    style?: StyleProp<ViewStyle>;
 }
 
 export function EthFaceAvatar({ address, size = 96, style }: EthFaceAvatarProps) {
-  /* Only generate when the address passes the strict viem checksum test */
-  const validAddress = isAddress(address) ? address : null;
-  const { uri } = useEthFace(validAddress);
+    /* Only generate when the address passes the strict viem checksum test */
+    const validAddress = isAddress(address, { strict: false }) ? address : null;
+    const { uri } = useEthFace(validAddress);
 
-  /* Fade-in when the URI becomes ready */
-  const opacity = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (!uri) { opacity.setValue(0); return; }
-    Animated.timing(opacity, {
-      toValue: 1,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
-  }, [uri]);
+    /* Fade-in when the URI becomes ready */
+    const opacity = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        if (!uri) { opacity.setValue(0); return; }
+        Animated.timing(opacity, {
+            toValue: 1,
+            duration: 180,
+            useNativeDriver: true,
+        }).start();
+    }, [uri]);
 
-  if (!validAddress) return null;
+    if (!validAddress) return null;
 
-  const radius = Math.round(size * 0.16);
+    const radius = Math.round(size * 0.16);
 
-  return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          width:        size,
-          height:       size,
-          borderRadius: radius,
-          opacity,
-        },
-        style,
-      ]}
-    >
-      {uri ? (
-        <Image
-          source={{ uri }}
-          style={{ width: size, height: size }}
-          resizeMode="stretch"   // PNG is already the exact right size
-          fadeDuration={0}        // we handle our own fade
-          accessibilityLabel={`Pixel avatar for address ${address.slice(0, 10)}…`}
-        />
-      ) : (
-        /* Placeholder while computing (should be < 1 frame) */
-        <View style={[styles.placeholder, { width: size, height: size, borderRadius: radius }]} />
-      )}
-    </Animated.View>
-  );
+    return (
+        <Animated.View
+            style={[
+                styles.container,
+                {
+                    width: size,
+                    height: size,
+                    borderRadius: radius,
+                    opacity,
+                },
+                style,
+            ]}
+        >
+            {uri ? (
+                <Image
+                    source={{ uri }}
+                    style={{ width: size, height: size }}
+                    resizeMode="stretch"   // PNG is already the exact right size
+                    fadeDuration={0}        // we handle our own fade
+                    accessibilityLabel={`Pixel avatar for address ${address.slice(0, 10)}…`}
+                />
+            ) : (
+                /* Placeholder while computing (should be < 1 frame) */
+                <View style={[styles.placeholder, { width: size, height: size, borderRadius: radius }]} />
+            )}
+        </Animated.View>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#d1d5db',
-    backgroundColor: '#f3f4f6',
-  },
-  placeholder: {
-    backgroundColor: '#e5e7eb',
-  },
+    container: {
+        overflow: 'hidden',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: '#d1d5db',
+        backgroundColor: '#f3f4f6',
+    },
+    placeholder: {
+        backgroundColor: '#e5e7eb',
+    },
 });
 
 /* =========================================================================

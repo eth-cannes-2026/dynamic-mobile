@@ -252,7 +252,7 @@ export function EthereumScreen() {
             keyboardType="decimal-pad"
           />
 
-          {isAddress(to) ? (
+          {isAddress(to, { strict: false }) ? (
             <View style={styles.avatarRow}>
               <EthFaceAvatar address={to} size={160} />
               <View style={styles.avatarMeta}>
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
   },
-  avatarRow: { flexDirection: 'column', alignItems: 'center',justifyContent: 'space-around', gap: 12, paddingVertical: 4 },
+  avatarRow: { flexDirection: 'column', alignItems: 'center', justifyContent: 'space-around', gap: 12, paddingVertical: 4 },
   avatarMeta: { flex: 1, gap: 2 },
   avatarTitle: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
   avatarAddress: { fontSize: 13, color: '#111827', fontFamily: 'monospace' },
