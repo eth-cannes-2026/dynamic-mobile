@@ -2,6 +2,7 @@
   "expo": {
     "name": "dynamic-mobile",
     "slug": "dynamic-mobile",
+    "scheme": "dynamicmobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +15,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.dynamicmobile"
+      "bundleIdentifier": "com.anonymous.dynamicmobile",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -30,7 +32,7 @@
     },
     "plugins": [
       "expo-web-browser",
-      "expo-secure-store"
+      "expo-secure-store",
     ]
   }
 }
