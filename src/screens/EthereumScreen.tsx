@@ -1,7 +1,11 @@
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import { Share, Platform } from 'react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,7 +17,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useReactiveClient } from '@dynamic-labs/react-hooks';
 import { isAddress, parseEther } from 'viem';
 import { dynamicClient } from '../../client';
+import { useEthFace } from '../hooks/useEthFace';
 import { EthFaceAvatar } from './EthFaceAvatar';
+import RNShare from 'react-native-share';
+
 
 type NetworkOption = {
   name: string;
@@ -44,6 +51,10 @@ export function EthereumScreen() {
   const [isSending, setIsSending] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const ownAddress = primaryWallet?.address ?? null;
+  const { uri: avatarUri } = useEthFace(ownAddress);
 
   const selectedNetwork = useMemo(
     () => networkOptions.find((network) => network.chainId === selectedChainId) ?? null,
@@ -64,14 +75,11 @@ export function EthereumScreen() {
         setSelectedChainId(null);
         return;
       }
-
       setIsRefreshing(true);
-
       const [{ network }, walletBalance] = await Promise.all([
         dynamicClient.wallets.getNetwork({ wallet: primaryWallet }),
         dynamicClient.wallets.getBalance({ wallet: primaryWallet }),
       ]);
-
       setSelectedChainId(Number(network));
       setBalance(walletBalance?.balance ?? '0');
     } catch (error) {
@@ -98,14 +106,8 @@ export function EthereumScreen() {
         Alert.alert('Wallet missing', 'No primary wallet connected.');
         return;
       }
-
       setIsSwitching(true);
-
-      await dynamicClient.wallets.switchNetwork({
-        wallet: primaryWallet,
-        chainId,
-      });
-
+      await dynamicClient.wallets.switchNetwork({ wallet: primaryWallet, chainId });
       setSelectedChainId(chainId);
       await refreshWalletState();
     } catch (error: any) {
@@ -122,44 +124,30 @@ export function EthereumScreen() {
         Alert.alert('Wallet missing', 'No primary wallet connected.');
         return;
       }
-
-      if (!to || !isAddress(to)) {
+      if (!to || !isAddress(to, { strict: false })) {
         Alert.alert('Invalid address', 'Please enter a valid EVM address.');
         return;
       }
-
       if (!amount || Number(amount) <= 0) {
         Alert.alert('Invalid amount', 'Please enter a valid amount.');
         return;
       }
-
       setIsSending(true);
       setTxHash(null);
-
-      const { network } = await dynamicClient.wallets.getNetwork({
-        wallet: primaryWallet,
-      });
-
+      const { network } = await dynamicClient.wallets.getNetwork({ wallet: primaryWallet });
       const publicClient = dynamicClient.viem.createPublicClient({
         chain: { id: Number(network) } as any,
       });
-
-      const walletClient = dynamicClient.viem.createWalletClient({
-        wallet: primaryWallet,
-      });
-
+      const walletClient = dynamicClient.viem.createWalletClient({ wallet: primaryWallet });
       const hash = await walletClient.sendTransaction({
         to: to as `0x${string}`,
         value: parseEther(amount),
       });
-
       await publicClient.getTransactionReceipt({ hash });
-
       setTxHash(hash);
       setTo('');
       setAmount('');
       await refreshWalletState();
-
       Alert.alert('Transaction sent', `Hash: ${hash}`);
     } catch (error: any) {
       console.error('Failed to send transaction', error);
@@ -169,6 +157,35 @@ export function EthereumScreen() {
     }
   };
 
+  const handleShareAddress = async () => {
+    if (!ownAddress || !avatarUri || isSharing) return;
+    try {
+      setIsSharing(true);
+
+      const base64 = avatarUri.replace(/^data:image\/png;base64,/, '');
+      const safeName = ownAddress.toLowerCase().replace(/[^0-9a-f]/g, '').slice(0, 12);
+
+      const raw = atob(base64);
+      const bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+
+      const file = new File(Paths.cache, `eth-face-${safeName}.png`);
+      file.write(bytes);
+
+      await RNShare.open({
+        url: file.uri,     // image
+        message: ownAddress,   // texte affiché sous l'image dans WhatsApp, Telegram, etc.
+        type: 'image/png',
+      });
+    } catch (err: any) {
+      if (!err?.message?.toLowerCase().includes('cancel')) {
+        Alert.alert('Share failed', err?.message ?? 'Unable to share.');
+      }
+    } finally {
+      setIsSharing(false);
+    }
+  };
+  
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
@@ -184,6 +201,7 @@ export function EthereumScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
+
         <View style={styles.card}>
           <Text style={styles.title}>Ethereum Actions</Text>
           <Text style={styles.meta}>User: {userLabel}</Text>
@@ -191,18 +209,47 @@ export function EthereumScreen() {
           <Text style={styles.meta}>Balance: {balance}</Text>
 
           <Text style={styles.label}>Address</Text>
-          <Text selectable style={styles.address}>
-            {primaryWallet?.address ?? 'No wallet connected'}
-          </Text>
+          <View style={styles.addressRow}>
+            {avatarUri ? (
+              <Image
+                source={{ uri: avatarUri }}
+                style={styles.addressAvatar}
+                resizeMode="stretch"
+                fadeDuration={0}
+              />
+            ) : (
+              <View style={styles.addressAvatarPlaceholder} />
+            )}
+            <Text selectable style={[styles.address, { flex: 1 }]} numberOfLines={1}>
+              {ownAddress ?? 'No wallet connected'}
+            </Text>
+            {ownAddress && avatarUri ? (
+              <Pressable
+                onPress={handleShareAddress}
+                disabled={isSharing}
+                style={({ pressed }) => [
+                  styles.shareButton,
+                  pressed && styles.shareButtonPressed,
+                  isSharing && styles.shareButtonDisabled,
+                ]}
+                accessibilityLabel="Share my address"
+                accessibilityRole="button"
+              >
+                {isSharing ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.shareButtonText}>↑ Share</Text>
+                )}
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
-        {/* <View style={styles.card}>
+        <View style={styles.card}>
           <Text style={styles.sectionTitle}>Choose network</Text>
-
           <View style={styles.networkRow}>
             {networkOptions.map((network) => {
               const selected = selectedChainId === network.chainId;
-
               return (
                 <Pressable
                   key={network.chainId}
@@ -221,14 +268,13 @@ export function EthereumScreen() {
               );
             })}
           </View>
-
           {isSwitching ? (
             <View style={styles.inlineStatus}>
               <ActivityIndicator size="small" />
               <Text style={styles.inlineStatusText}>Switching network...</Text>
             </View>
           ) : null}
-        </View> */}
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Send native crypto</Text>
@@ -277,9 +323,7 @@ export function EthereumScreen() {
           {txHash ? (
             <>
               <Text style={styles.label}>Last transaction hash</Text>
-              <Text selectable style={styles.hash}>
-                {txHash}
-              </Text>
+              <Text selectable style={styles.hash}>{txHash}</Text>
             </>
           ) : null}
         </View>
@@ -294,7 +338,6 @@ export function EthereumScreen() {
               {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </Text>
           </Pressable>
-
           <Pressable
             style={[styles.dangerButton, isLoggingOut && styles.buttonDisabled]}
             onPress={handleLogout}
@@ -307,6 +350,7 @@ export function EthereumScreen() {
             )}
           </Pressable>
         </View>
+
       </ScrollView>
 
       <View style={styles.hiddenWebview}>
@@ -351,9 +395,52 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6b7280',
   },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  addressAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#d1d5db',
+    flexShrink: 0,
+  },
+  addressAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+    backgroundColor: '#e5e7eb',
+    flexShrink: 0,
+  },
   address: {
     fontSize: 14,
     color: '#111827',
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: '#111827',
+    minWidth: 72,
+    minHeight: 32,
+    flexShrink: 0,
+  },
+  shareButtonPressed: {
+    backgroundColor: '#374151',
+  },
+  shareButtonDisabled: {
+    opacity: 0.55,
+  },
+  shareButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
   },
   input: {
     minHeight: 48,
@@ -458,4 +545,5 @@ const styles = StyleSheet.create({
   avatarMeta: { flex: 1, gap: 2 },
   avatarTitle: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
   avatarAddress: { fontSize: 13, color: '#111827', fontFamily: 'monospace' },
+
 });
