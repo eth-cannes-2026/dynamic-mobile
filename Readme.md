@@ -1,4 +1,5 @@
 # run on android
+npm i 
 npx expo prebuild -p android
 npx expo run:android
 
