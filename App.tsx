@@ -22,11 +22,7 @@ export default function App() {
       setShowWalletScreen(false);
       return;
     }
-
-    const timer = setTimeout(() => {
-      setShowWalletScreen(true);
-    }, 250);
-
+    const timer = setTimeout(() => setShowWalletScreen(true), 250);
     return () => clearTimeout(timer);
   }, [hasWallet]);
 
@@ -38,48 +34,46 @@ export default function App() {
     }
   };
 
-  if (showWalletScreen) {
-    return (
-      <SafeAreaProvider>
-        <StatusBar style="auto" />
-        <EthereumScreen />
-      </SafeAreaProvider>
-    );
-  }
-
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="auto" />
+      <StatusBar style="auto" />
 
-        <View style={styles.webviewContainer}>
-          <dynamicClient.reactNative.WebView />
-        </View>
+      {/* WebView toujours montée, cachée quand pas nécessaire */}
+      <View style={showWalletScreen ? styles.webviewHidden : styles.webviewVisible}>
+        <dynamicClient.reactNative.WebView />
+      </View>
 
-        <View style={styles.overlay}>
-          <View style={styles.heroCard}>
-            <Text style={styles.title}>Dynamic Ethereum Demo</Text>
-            <Text style={styles.subtitle}>
-              Connect with Google or Apple to access your wallet actions.
-            </Text>
+      {showWalletScreen ? (
+        <EthereumScreen />
+      ) : (
+        <SafeAreaView style={styles.container}>
+          <View style={styles.overlay}>
+            <View style={styles.heroCard}>
+              <Text style={styles.title}>Dynamic Ethereum Demo</Text>
+              <Text style={styles.subtitle}>
+                Connect with Google or Apple to access your wallet actions.
+              </Text>
 
-            <Pressable style={styles.primaryButton} onPress={openAuth}>
-              <Text style={styles.primaryButtonText}>Open Dynamic Auth</Text>
-            </Pressable>
+              <Pressable style={styles.primaryButton} onPress={openAuth}>
+                <Text style={styles.primaryButtonText}>Open Dynamic Auth</Text>
+              </Pressable>
 
-            <View style={styles.statusRow}>
-              {hasWallet ? (
-                <>
-                  <ActivityIndicator size="small" />
-                  <Text style={styles.statusText}>Wallet detected, opening your dashboard...</Text>
-                </>
-              ) : (
-                <Text style={styles.statusText}>Waiting for connection</Text>
-              )}
+              <View style={styles.statusRow}>
+                {hasWallet ? (
+                  <>
+                    <ActivityIndicator size="small" />
+                    <Text style={styles.statusText}>
+                      Wallet detected, opening your dashboard...
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.statusText}>Waiting for connection</Text>
+                )}
+              </View>
             </View>
           </View>
-        </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      )}
     </SafeAreaProvider>
   );
 }
@@ -89,8 +83,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  webviewContainer: {
+  // WebView visible sur l'écran de connexion (prend tout l'écran)
+  webviewVisible: {
     flex: 1,
+    ...StyleSheet.absoluteFillObject,
+  },
+  // WebView cachée mais toujours montée en mémoire (1x1 hors écran)
+  webviewHidden: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    bottom: 0,
+    right: 0,
+    opacity: 0,
+    pointerEvents: 'none',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,

@@ -20,7 +20,7 @@ import { dynamicClient } from '../../client';
 import { useEthFace } from '../hooks/useEthFace';
 import RNShare from 'react-native-share';
 import { WalletFaceWebView } from './WalletFaceWebView';
-
+import { sepolia } from 'viem/chains';
 
 type NetworkOption = {
   name: string;
@@ -118,44 +118,52 @@ export function EthereumScreen() {
     }
   };
 
-  const handleSend = async () => {
-    try {
-      if (!primaryWallet) {
-        Alert.alert('Wallet missing', 'No primary wallet connected.');
-        return;
-      }
-      if (!to || !isAddress(to, { strict: false })) {
-        Alert.alert('Invalid address', 'Please enter a valid EVM address.');
-        return;
-      }
-      if (!amount || Number(amount) <= 0) {
-        Alert.alert('Invalid amount', 'Please enter a valid amount.');
-        return;
-      }
-      setIsSending(true);
-      setTxHash(null);
-      const { network } = await dynamicClient.wallets.getNetwork({ wallet: primaryWallet });
-      const publicClient = dynamicClient.viem.createPublicClient({
-        chain: { id: Number(network) } as any,
-      });
-      const walletClient = dynamicClient.viem.createWalletClient({ wallet: primaryWallet });
-      const hash = await walletClient.sendTransaction({
-        to: to as `0x${string}`,
-        value: parseEther(amount),
-      });
-      await publicClient.getTransactionReceipt({ hash });
-      setTxHash(hash);
-      setTo('');
-      setAmount('');
-      await refreshWalletState();
-      Alert.alert('Transaction sent', `Hash: ${hash}`);
-    } catch (error: any) {
-      console.error('Failed to send transaction', error);
-      Alert.alert('Transaction failed', error?.message ?? 'Unable to send transaction.');
-    } finally {
-      setIsSending(false);
+const handleSend = async () => {
+  try {
+    if (!primaryWallet) {
+      Alert.alert('Wallet missing', 'No primary wallet connected.');
+      return;
     }
-  };
+    if (!to || !isAddress(to, { strict: false })) {
+      Alert.alert('Invalid address', 'Please enter a valid EVM address.');
+      return;
+    }
+    if (!amount || Number(amount) <= 0) {
+      Alert.alert('Invalid amount', 'Please enter a valid amount.');
+      return;
+    }
+
+    setIsSending(true);
+    setTxHash(null);
+
+    const walletClient = await dynamicClient.viem.createWalletClient({
+      wallet: primaryWallet,
+    });
+
+    const publicClient = dynamicClient.viem.createPublicClient({
+      chain: sepolia,
+    });
+
+    const hash = await walletClient.sendTransaction({
+      to: to as `0x${string}`,
+      value: parseEther(amount),
+      chain: sepolia,
+    });
+
+    await publicClient.waitForTransactionReceipt({ hash });
+
+    setTxHash(hash);
+    setTo('');
+    setAmount('');
+    await refreshWalletState();
+    Alert.alert('Transaction sent', `Hash: ${hash}`);
+  } catch (error: any) {
+    console.error('Failed to send transaction', error);
+    Alert.alert('Transaction failed', error?.message ?? 'Unable to send transaction.');
+  } finally {
+    setIsSending(false);
+  }
+};
 
   const handleShareAddress = async () => {
     if (!ownAddress || !avatarUri || isSharing) return;
@@ -353,10 +361,6 @@ export function EthereumScreen() {
         </View>
 
       </ScrollView>
-
-      {/* <View style={styles.hiddenWebview}>
-        <dynamicClient.reactNative.WebView />
-      </View> */}
     </SafeAreaView>
   );
 }

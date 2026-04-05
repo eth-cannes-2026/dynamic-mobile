@@ -11,8 +11,25 @@ if (!environmentId) {
 export const dynamicClient = createClient({
   environmentId,
   appLogoUrl: 'https://demo.dynamic.xyz/favicon-32x32.png',
-  appName: 'My App',
-
+  appName: 'Face Wallet',
+  evmNetworks: [
+    {
+      chainId: 11155111,
+      chainName: "Sepolia",
+      iconUrls: ["https://app.dynamic.xyz/assets/networks/eth.svg"],
+      name: "Sepolia",
+      nativeCurrency: {
+        decimals: 18,
+        name: "Sepolia Ether",
+        symbol: "ETH",
+        iconUrl: "https://app.dynamic.xyz/assets/networks/eth.svg",
+      },
+      networkId: 11155111,
+      rpcUrls: ["https://sepolia.drpc.org"],
+      blockExplorerUrls: ["https://sepolia.etherscan.io"],
+      vanityName: "Sepolia",
+    },
+  ],
 })
-  .extend(ReactNativeExtension({ appOrigin: 'http://localhost:8081' }))
+  .extend(ReactNativeExtension({ appOrigin: 'http://localhost:8081', }))
   .extend(ViemExtension());
